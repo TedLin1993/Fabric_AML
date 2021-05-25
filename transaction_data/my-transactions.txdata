@@ -1,0 +1,44 @@
+[
+    {
+        "transactionName": "AmlExists",
+        "transactionLabel": "A test AmlExists transaction",
+        "arguments": [
+            "001"
+        ],
+        "transientData": {}
+    },
+    {
+        "transactionName": "CreateAml",
+        "transactionLabel": "A test CreateAml transaction",
+        "arguments": [
+            "001",
+            "some value"
+        ],
+        "transientData": {}
+    },
+    {
+        "transactionName": "ReadAml",
+        "transactionLabel": "A test ReadAml transaction",
+        "arguments": [
+            "001"
+        ],
+        "transientData": {}
+    },
+    {
+        "transactionName": "UpdateAml",
+        "transactionLabel": "A test UpdateAml transaction",
+        "arguments": [
+            "001",
+            "some other value"
+        ],
+        "transientData": {}
+    },
+    {
+        "transactionName": "DeleteAml",
+        "transactionLabel": "A test DeleteAml transaction",
+        "arguments": [
+            "001"
+        ],
+        "transientData": {}
+    }
+]
