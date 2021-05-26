@@ -4,6 +4,8 @@
 
 package main
 
+import "time"
+
 type Aml struct {
 	Last_name  string `json:"last_name"`
 	First_name string `json:"first_name"`
@@ -14,8 +16,9 @@ type Aml struct {
 	Risk_level string `json:"risk_level"`
 }
 
-// QueryResult structure used for handling result of query
-type QueryResult struct {
-	Tracking_number string `json:"tracking_number"`
-	Record          *Aml
+type HistoryQueryResult struct {
+	Record    *Aml      `json:"record"`
+	TxId      string    `json:"txId"`
+	Timestamp time.Time `json:"timestamp"`
+	IsDelete  bool      `json:"isDelete"`
 }

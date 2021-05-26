@@ -7,8 +7,9 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"strconv"
+	"log"
 
+	"github.com/golang/protobuf/ptypes"
 	"github.com/hyperledger/fabric-chaincode-go/shim"
 	"github.com/hyperledger/fabric-contract-api-go/contractapi"
 )
@@ -146,15 +147,59 @@ func (c *AmlContract) UpdateAmlData(ctx contractapi.TransactionContextInterface,
 }
 
 // DeleteAml deletes an instance of Aml from the world state
-func (c *AmlContract) DeleteAmlData(ctx contractapi.TransactionContextInterface, country string, id_number uint64, data_owner string) error {
+func (c *AmlContract) DeleteAmlData(ctx contractapi.TransactionContextInterface, country string, id_number string, data_owner string) error {
 
-	key := country + "_" + strconv.FormatUint(id_number, 10) + "_" + data_owner
+	key := country + "_" + id_number + "_" + data_owner
 	exists, err := c.AmlExists(ctx, key)
 	if err != nil {
 		return fmt.Errorf("could not interact with aml world state. %s", err)
 	} else if !exists {
-		return fmt.Errorf("the aml data does not exist, country:%s, id_number:%s, data_owner:%s", country, strconv.FormatUint(id_number, 10), data_owner)
+		return fmt.Errorf("the aml data does not exist, country:%s, id_number:%s, data_owner:%s", country, id_number, data_owner)
 	}
 
 	return ctx.GetStub().DelState(key)
+}
+
+// GetAssetHistory returns the chain of custody for an asset since issuance.
+func (c *AmlContract) GetAssetHistory(ctx contractapi.TransactionContextInterface, country string, id_number string, data_owner string) ([]HistoryQueryResult, error) {
+	log.Printf("GetAssetHistory: Country: %s, ID_number: %s, Data_owner: %s", country, id_number, data_owner)
+	key := country + "_" + id_number + "_" + data_owner
+	resultsIterator, err := ctx.GetStub().GetHistoryForKey(key)
+	if err != nil {
+		return nil, err
+	}
+	defer resultsIterator.Close()
+
+	var records []HistoryQueryResult
+	for resultsIterator.HasNext() {
+		response, err := resultsIterator.Next()
+		if err != nil {
+			return nil, err
+		}
+
+		var asset Aml
+		if len(response.Value) > 0 {
+			err = json.Unmarshal(response.Value, &asset)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			asset = Aml{}
+		}
+
+		timestamp, err := ptypes.Timestamp(response.Timestamp)
+		if err != nil {
+			return nil, err
+		}
+
+		record := HistoryQueryResult{
+			TxId:      response.TxId,
+			Timestamp: timestamp,
+			Record:    &asset,
+			IsDelete:  response.IsDelete,
+		}
+		records = append(records, record)
+	}
+
+	return records, nil
 }
