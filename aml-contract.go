@@ -21,18 +21,24 @@ type AmlContract struct {
 func (c *AmlContract) InitLedger(ctx contractapi.TransactionContextInterface) error {
 	amlData := []Aml{
 		Aml{Last_name: "Lee", First_name: "Tom", DOB: "1980/01/02", Country: "TWN", ID_number: "A123456789", Data_owner: "org0", Risk_level: "low"},
-		Aml{Last_name: "Lee", First_name: "Tom", DOB: "1980/01/02", Country: "TWN", ID_number: "A123456789", Data_owner: "org0", Risk_level: "low"},
+		Aml{Last_name: "Tseng", First_name: "Ling-Pei", DOB: "1982/02/20", Country: "TWN", ID_number: "D111111111", Data_owner: "org0", Risk_level: "high"},
+		Aml{Last_name: "Chan", First_name: "Yip", DOB: "1970/02/15", Country: "HKG", ID_number: "ABZG156465", Data_owner: "org0", Risk_level: "medium"},
 
-		Aml{Last_name: "Lee", First_name: "Tom", DOB: "1980/01/02", Country: "TWN", ID_number: "A123456789", Data_owner: "org0", Risk_level: "low"},
+		Aml{Last_name: "Lee", First_name: "Tom", DOB: "1980/01/02", Country: "TWN", ID_number: "A123456789", Data_owner: "org1", Risk_level: "low"},
+		Aml{Last_name: "Li", First_name: "Kuei-Jung", DOB: "1973/10/04", Country: "NLD", ID_number: "CALZ12557", Data_owner: "org1", Risk_level: "low"},
+		Aml{Last_name: "Shen", First_name: "Lung-Tsu", DOB: "1979/05/14", Country: "TWN", ID_number: "F123456789", Data_owner: "org1", Risk_level: "low"},
 
-		Aml{Last_name: "Lee", First_name: "Tom", DOB: "1980/01/02", Country: "TWN", ID_number: "A123456789", Data_owner: "org0", Risk_level: "low"},
+		Aml{Last_name: "Lee", First_name: "Tom", DOB: "1980/01/02", Country: "TWN", ID_number: "A123456789", Data_owner: "org2", Risk_level: "low"},
+		Aml{Last_name: "TSUNG", First_name: "CHUN-CHEN", DOB: "1982/06/10", Country: "TWN", ID_number: "B123456789", Data_owner: "org2", Risk_level: "medium"},
+		Aml{Last_name: "Chan", First_name: "Chi-Jong", DOB: "1975/04/03", Country: "TWN", ID_number: "C123456789", Data_owner: "org2", Risk_level: "low"},
 	}
-	for i, aml := range amlData {
-		carAsBytes, _ := json.Marshal(aml)
-		err := ctx.GetStub().PutState("CAR"+strconv.Itoa(i), carAsBytes)
+	for _, aml := range amlData {
+		AmlAsbytes, _ := json.Marshal(aml)
+		key := aml.Country + "_" + aml.ID_number + "_" + aml.Data_owner
+		err := ctx.GetStub().PutState(key, AmlAsbytes)
 
 		if err != nil {
-			return fmt.Errorf("Failed to put to world state. %s", err.Error())
+			return fmt.Errorf("failed to put to world state. %s", err.Error())
 		}
 	}
 
@@ -56,9 +62,9 @@ func (c *AmlContract) CreateAmlData(ctx contractapi.TransactionContextInterface,
 	key := country + "_" + id_number + "_" + data_owner
 	exists, err := c.AmlExists(ctx, key)
 	if err != nil {
-		return fmt.Errorf("Could not interact with aml world state. %s", err)
+		return fmt.Errorf("could not interact with aml world state. %s", err)
 	} else if exists {
-		return fmt.Errorf("The aml data already exists country:%s, id_number:%s, data_owner:%s", country, id_number, data_owner)
+		return fmt.Errorf("the aml data already exists country:%s, id_number:%s, data_owner:%s", country, id_number, data_owner)
 	}
 
 	aml := new(Aml)
@@ -74,7 +80,7 @@ func (c *AmlContract) CreateAmlData(ctx contractapi.TransactionContextInterface,
 	err = ctx.GetStub().PutState(key, bytes)
 
 	if err != nil {
-		return fmt.Errorf("Could not interact with aml world state. %s", err)
+		return fmt.Errorf("could not interact with aml world state. %s", err)
 	}
 	return nil
 }
@@ -120,9 +126,9 @@ func (c *AmlContract) UpdateAmlData(ctx contractapi.TransactionContextInterface,
 	key := country + "_" + id_number + "_" + data_owner
 	exists, err := c.AmlExists(ctx, key)
 	if err != nil {
-		return fmt.Errorf("Could not interact with aml world state. %s", err)
+		return fmt.Errorf("could not interact with aml world state. %s", err)
 	} else if exists {
-		return fmt.Errorf("The aml data already exists country:%s, id_number:%s, data_owner:%s", country, id_number, data_owner)
+		return fmt.Errorf("the aml data already exists country:%s, id_number:%s, data_owner:%s", country, id_number, data_owner)
 	}
 
 	aml := new(Aml)
@@ -145,9 +151,9 @@ func (c *AmlContract) DeleteAmlData(ctx contractapi.TransactionContextInterface,
 	key := country + "_" + strconv.FormatUint(id_number, 10) + "_" + data_owner
 	exists, err := c.AmlExists(ctx, key)
 	if err != nil {
-		return fmt.Errorf("Could not interact with aml world state. %s", err)
+		return fmt.Errorf("could not interact with aml world state. %s", err)
 	} else if !exists {
-		return fmt.Errorf("The aml data does not exist, country:%s, id_number:%s, data_owner:%s", country, strconv.FormatUint(id_number, 10), data_owner)
+		return fmt.Errorf("the aml data does not exist, country:%s, id_number:%s, data_owner:%s", country, strconv.FormatUint(id_number, 10), data_owner)
 	}
 
 	return ctx.GetStub().DelState(key)
