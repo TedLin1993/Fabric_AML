@@ -1,0 +1,8 @@
+{
+  "index":{
+      "fields":["Data_owner","Country","ID_number"] 
+  },
+  "ddoc":"indexAMLDoc",
+  "name":"indexAML",
+  "type":"json"
+}
