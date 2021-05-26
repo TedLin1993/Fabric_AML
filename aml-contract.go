@@ -10,6 +10,7 @@ import (
 	"log"
 
 	"github.com/golang/protobuf/ptypes"
+	"github.com/hyperledger/fabric-chaincode-go/pkg/statebased"
 	"github.com/hyperledger/fabric-chaincode-go/shim"
 	"github.com/hyperledger/fabric-contract-api-go/contractapi"
 )
@@ -59,13 +60,21 @@ func (c *AmlContract) AmlExists(ctx contractapi.TransactionContextInterface, key
 }
 
 // CreateAml creates a new instance of Aml
-func (c *AmlContract) CreateAmlData(ctx contractapi.TransactionContextInterface, last_name string, first_name string, dob string, country string, id_number string, data_owner string, risk_level string) error {
-	key := country + "_" + id_number + "_" + data_owner
+func (c *AmlContract) CreateAmlData(ctx contractapi.TransactionContextInterface, last_name string, first_name string, dob string, country string, id_number string, risk_level string) error {
+
+	// Get client org id and verify it matches peer org id.
+	// In this scenario, client is only authorized to read/write private data from its own peer.
+	clientOrgID, err := getClientOrgID(ctx, true)
+	if err != nil {
+		return fmt.Errorf("failed to get verified OrgID: %v", err)
+	}
+
+	key := country + "_" + id_number + "_" + clientOrgID
 	exists, err := c.AmlExists(ctx, key)
 	if err != nil {
 		return fmt.Errorf("could not interact with aml world state. %s", err)
 	} else if exists {
-		return fmt.Errorf("the aml data already exists country:%s, id_number:%s, data_owner:%s", country, id_number, data_owner)
+		return fmt.Errorf("the aml data already exists country:%s, id_number:%s, data_owner:%s", country, id_number, clientOrgID)
 	}
 
 	aml := new(Aml)
@@ -74,15 +83,83 @@ func (c *AmlContract) CreateAmlData(ctx contractapi.TransactionContextInterface,
 	aml.DOB = dob
 	aml.Country = country
 	aml.ID_number = id_number
-	aml.Data_owner = data_owner
+	aml.Data_owner = clientOrgID
 	aml.Risk_level = risk_level
 
 	bytes, _ := json.Marshal(aml)
-	err = ctx.GetStub().PutState(key, bytes)
 
+	err = ctx.GetStub().PutState(key, bytes)
 	if err != nil {
 		return fmt.Errorf("could not interact with aml world state. %s", err)
 	}
+
+	// Set the endorsement policy such that an owner org peer is required to endorse future updates
+	err = setAssetStateBasedEndorsement(ctx, key, clientOrgID)
+	if err != nil {
+		return fmt.Errorf("failed setting state based endorsement for owner: %v", err)
+	}
+
+	return nil
+}
+
+// getClientOrgID gets the client org ID.
+// The client org ID can optionally be verified against the peer org ID, to ensure that a client
+// from another org doesn't attempt to read or write private data from this peer.
+// The only exception in this scenario is for TransferAsset, since the current owner
+// needs to get an endorsement from the buyer's peer.
+func getClientOrgID(ctx contractapi.TransactionContextInterface, verifyOrg bool) (string, error) {
+	clientOrgID, err := ctx.GetClientIdentity().GetMSPID()
+	if err != nil {
+		return "", fmt.Errorf("failed getting client's orgID: %v", err)
+	}
+
+	if verifyOrg {
+		err = verifyClientOrgMatchesPeerOrg(clientOrgID)
+		if err != nil {
+			return "", err
+		}
+	}
+
+	return clientOrgID, nil
+}
+
+// verifyClientOrgMatchesPeerOrg checks the client org id matches the peer org id.
+func verifyClientOrgMatchesPeerOrg(clientOrgID string) error {
+	peerOrgID, err := shim.GetMSPID()
+	if err != nil {
+		return fmt.Errorf("failed getting peer's orgID: %v", err)
+	}
+
+	if clientOrgID != peerOrgID {
+		return fmt.Errorf("client from org %s is not authorized to read or write private data from an org %s peer",
+			clientOrgID,
+			peerOrgID,
+		)
+	}
+
+	return nil
+}
+
+// setAssetStateBasedEndorsement adds an endorsement policy to a asset so that only a peer from an owning org
+// can update or transfer the asset.
+func setAssetStateBasedEndorsement(ctx contractapi.TransactionContextInterface, key string, orgToEndorse string) error {
+	endorsementPolicy, err := statebased.NewStateEP(nil)
+	if err != nil {
+		return err
+	}
+	err = endorsementPolicy.AddOrgs(statebased.RoleTypePeer, orgToEndorse)
+	if err != nil {
+		return fmt.Errorf("failed to add org to endorsement policy: %v", err)
+	}
+	policy, err := endorsementPolicy.Policy()
+	if err != nil {
+		return fmt.Errorf("failed to create endorsement policy bytes from org: %v", err)
+	}
+	err = ctx.GetStub().SetStateValidationParameter(key, policy)
+	if err != nil {
+		return fmt.Errorf("failed to set validation parameter on asset: %v", err)
+	}
+
 	return nil
 }
 
@@ -122,14 +199,20 @@ func constructQueryResponseFromIterator(resultsIterator shim.StateQueryIteratorI
 }
 
 // UpdateAml retrieves an instance of Aml from the world state and updates its value
-func (c *AmlContract) UpdateAmlData(ctx contractapi.TransactionContextInterface, last_name string, first_name string, dob string, country string, id_number string, data_owner string, risk_level string) error {
+func (c *AmlContract) UpdateAmlData(ctx contractapi.TransactionContextInterface, last_name string, first_name string, dob string, country string, id_number string, risk_level string) error {
 
-	key := country + "_" + id_number + "_" + data_owner
+	// No need to check client org id matches peer org id, rely on the asset ownership check instead.
+	clientOrgID, err := getClientOrgID(ctx, false)
+	if err != nil {
+		return fmt.Errorf("failed to get verified OrgID: %v", err)
+	}
+
+	key := country + "_" + id_number + "_" + clientOrgID
 	exists, err := c.AmlExists(ctx, key)
 	if err != nil {
 		return fmt.Errorf("could not interact with aml world state. %s", err)
-	} else if exists {
-		return fmt.Errorf("the aml data already exists country:%s, id_number:%s, data_owner:%s", country, id_number, data_owner)
+	} else if !exists {
+		return fmt.Errorf("the aml data does not exists: country:%s, id_number:%s, data_owner:%s", country, id_number, clientOrgID)
 	}
 
 	aml := new(Aml)
@@ -138,7 +221,7 @@ func (c *AmlContract) UpdateAmlData(ctx contractapi.TransactionContextInterface,
 	aml.DOB = dob
 	aml.Country = country
 	aml.ID_number = id_number
-	aml.Data_owner = data_owner
+	aml.Data_owner = clientOrgID
 	aml.Risk_level = risk_level
 
 	bytes, _ := json.Marshal(aml)
@@ -147,14 +230,19 @@ func (c *AmlContract) UpdateAmlData(ctx contractapi.TransactionContextInterface,
 }
 
 // DeleteAml deletes an instance of Aml from the world state
-func (c *AmlContract) DeleteAmlData(ctx contractapi.TransactionContextInterface, country string, id_number string, data_owner string) error {
+func (c *AmlContract) DeleteAmlData(ctx contractapi.TransactionContextInterface, country string, id_number string) error {
+	// No need to check client org id matches peer org id, rely on the asset ownership check instead.
+	clientOrgID, err := getClientOrgID(ctx, false)
+	if err != nil {
+		return fmt.Errorf("failed to get verified OrgID: %v", err)
+	}
 
-	key := country + "_" + id_number + "_" + data_owner
+	key := country + "_" + id_number + "_" + clientOrgID
 	exists, err := c.AmlExists(ctx, key)
 	if err != nil {
 		return fmt.Errorf("could not interact with aml world state. %s", err)
 	} else if !exists {
-		return fmt.Errorf("the aml data does not exist, country:%s, id_number:%s, data_owner:%s", country, id_number, data_owner)
+		return fmt.Errorf("the aml data does not exist, country:%s, id_number:%s, data_owner:%s", country, id_number, clientOrgID)
 	}
 
 	return ctx.GetStub().DelState(key)
