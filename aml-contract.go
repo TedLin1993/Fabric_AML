@@ -22,17 +22,17 @@ type AmlContract struct {
 
 func (c *AmlContract) InitLedger(ctx contractapi.TransactionContextInterface) error {
 	amlData := []Aml{
-		Aml{Last_name: "Lee", First_name: "Tom", DOB: "1980/01/02", Country: "TWN", ID_number: "A123456789", Data_owner: "org0", Risk_level: "low"},
-		Aml{Last_name: "Tseng", First_name: "Ling-Pei", DOB: "1982/02/20", Country: "TWN", ID_number: "D111111111", Data_owner: "org0", Risk_level: "high"},
-		Aml{Last_name: "Chan", First_name: "Yip", DOB: "1970/02/15", Country: "HKG", ID_number: "ABZG156465", Data_owner: "org0", Risk_level: "medium"},
+		Aml{Last_name: "Lee", First_name: "Tom", DOB: "1980/01/02", Country: "TWN", ID_number: "A123456789", Data_owner: "org0MSP", Risk_level: "low"},
+		Aml{Last_name: "Tseng", First_name: "Ling-Pei", DOB: "1982/02/20", Country: "TWN", ID_number: "D111111111", Data_owner: "org0MSP", Risk_level: "high"},
+		Aml{Last_name: "Chan", First_name: "Yip", DOB: "1970/02/15", Country: "HKG", ID_number: "ABZG156465", Data_owner: "org0MSP", Risk_level: "medium"},
 
-		Aml{Last_name: "Lee", First_name: "Tom", DOB: "1980/01/02", Country: "TWN", ID_number: "A123456789", Data_owner: "org1", Risk_level: "low"},
-		Aml{Last_name: "Li", First_name: "Kuei-Jung", DOB: "1973/10/04", Country: "NLD", ID_number: "CALZ12557", Data_owner: "org1", Risk_level: "low"},
-		Aml{Last_name: "Shen", First_name: "Lung-Tsu", DOB: "1979/05/14", Country: "TWN", ID_number: "F123456789", Data_owner: "org1", Risk_level: "low"},
+		Aml{Last_name: "Lee", First_name: "Tom", DOB: "1980/01/02", Country: "TWN", ID_number: "A123456789", Data_owner: "org1MSP", Risk_level: "low"},
+		Aml{Last_name: "Li", First_name: "Kuei-Jung", DOB: "1973/10/04", Country: "NLD", ID_number: "CALZ12557", Data_owner: "org1MSP", Risk_level: "low"},
+		Aml{Last_name: "Shen", First_name: "Lung-Tsu", DOB: "1979/05/14", Country: "TWN", ID_number: "F123456789", Data_owner: "org1MSP", Risk_level: "low"},
 
-		Aml{Last_name: "Lee", First_name: "Tom", DOB: "1980/01/02", Country: "TWN", ID_number: "A123456789", Data_owner: "org2", Risk_level: "low"},
-		Aml{Last_name: "TSUNG", First_name: "CHUN-CHEN", DOB: "1982/06/10", Country: "TWN", ID_number: "B123456789", Data_owner: "org2", Risk_level: "medium"},
-		Aml{Last_name: "Chan", First_name: "Chi-Jong", DOB: "1975/04/03", Country: "TWN", ID_number: "C123456789", Data_owner: "org2", Risk_level: "low"},
+		Aml{Last_name: "Lee", First_name: "Tom", DOB: "1980/01/02", Country: "TWN", ID_number: "A123456789", Data_owner: "org2MSP", Risk_level: "low"},
+		Aml{Last_name: "TSUNG", First_name: "CHUN-CHEN", DOB: "1982/06/10", Country: "TWN", ID_number: "B123456789", Data_owner: "org2MSP", Risk_level: "medium"},
+		Aml{Last_name: "Chan", First_name: "Chi-Jong", DOB: "1975/04/03", Country: "TWN", ID_number: "C123456789", Data_owner: "org2MSP", Risk_level: "low"},
 	}
 	for _, aml := range amlData {
 		AmlAsbytes, _ := json.Marshal(aml)
