@@ -10,8 +10,6 @@ import (
 	"log"
 
 	"github.com/golang/protobuf/ptypes"
-	"github.com/hyperledger/fabric-chaincode-go/pkg/statebased"
-	"github.com/hyperledger/fabric-chaincode-go/shim"
 	"github.com/hyperledger/fabric-contract-api-go/contractapi"
 )
 
@@ -20,7 +18,7 @@ type AmlContract struct {
 	contractapi.Contract
 }
 
-func (c *AmlContract) InitLedger(ctx contractapi.TransactionContextInterface) error {
+func (c *AmlContract) Init(ctx contractapi.TransactionContextInterface) error {
 	amlData := []Aml{
 		Aml{Last_name: "Lee", First_name: "Tom", DOB: "1980/01/02", Country: "TWN", ID_number: "A123456789", Data_owner: "org0MSP", Risk_level: "low"},
 		Aml{Last_name: "Tseng", First_name: "Ling-Pei", DOB: "1982/02/20", Country: "TWN", ID_number: "D111111111", Data_owner: "org0MSP", Risk_level: "high"},
@@ -47,20 +45,8 @@ func (c *AmlContract) InitLedger(ctx contractapi.TransactionContextInterface) er
 	return nil
 }
 
-// AmlExists returns true when asset with given ID exists in world state
-func (c *AmlContract) AmlExists(ctx contractapi.TransactionContextInterface, key string) (bool, error) {
-
-	data, err := ctx.GetStub().GetState(key)
-
-	if err != nil {
-		return false, err
-	}
-
-	return data != nil, nil
-}
-
 // CreateAml creates a new instance of Aml
-func (c *AmlContract) CreateAmlData(ctx contractapi.TransactionContextInterface, last_name string, first_name string, dob string, country string, id_number string, risk_level string) error {
+func (c *AmlContract) Create(ctx contractapi.TransactionContextInterface, last_name string, first_name string, dob string, country string, id_number string, risk_level string) error {
 
 	// Get client org id and verify it matches peer org id.
 	// In this scenario, client is only authorized to read/write private data from its own peer.
@@ -102,104 +88,12 @@ func (c *AmlContract) CreateAmlData(ctx contractapi.TransactionContextInterface,
 	return nil
 }
 
-// getClientOrgID gets the client org ID.
-// The client org ID can optionally be verified against the peer org ID, to ensure that a client
-// from another org doesn't attempt to read or write private data from this peer.
-// The only exception in this scenario is for TransferAsset, since the current owner
-// needs to get an endorsement from the buyer's peer.
-func getClientOrgID(ctx contractapi.TransactionContextInterface, verifyOrg bool) (string, error) {
-	clientOrgID, err := ctx.GetClientIdentity().GetMSPID()
-	if err != nil {
-		return "", fmt.Errorf("failed getting client's orgID: %v", err)
-	}
-
-	if verifyOrg {
-		err = verifyClientOrgMatchesPeerOrg(clientOrgID)
-		if err != nil {
-			return "", err
-		}
-	}
-
-	return clientOrgID, nil
-}
-
-// verifyClientOrgMatchesPeerOrg checks the client org id matches the peer org id.
-func verifyClientOrgMatchesPeerOrg(clientOrgID string) error {
-	peerOrgID, err := shim.GetMSPID()
-	if err != nil {
-		return fmt.Errorf("failed getting peer's orgID: %v", err)
-	}
-
-	if clientOrgID != peerOrgID {
-		return fmt.Errorf("client from org %s is not authorized to read or write private data from an org %s peer",
-			clientOrgID,
-			peerOrgID,
-		)
-	}
-
-	return nil
-}
-
-// setAssetStateBasedEndorsement adds an endorsement policy to a asset so that only a peer from an owning org
-// can update or transfer the asset.
-func setAssetStateBasedEndorsement(ctx contractapi.TransactionContextInterface, key string, orgToEndorse string) error {
-	endorsementPolicy, err := statebased.NewStateEP(nil)
-	if err != nil {
-		return err
-	}
-	err = endorsementPolicy.AddOrgs(statebased.RoleTypePeer, orgToEndorse)
-	if err != nil {
-		return fmt.Errorf("failed to add org to endorsement policy: %v", err)
-	}
-	policy, err := endorsementPolicy.Policy()
-	if err != nil {
-		return fmt.Errorf("failed to create endorsement policy bytes from org: %v", err)
-	}
-	err = ctx.GetStub().SetStateValidationParameter(key, policy)
-	if err != nil {
-		return fmt.Errorf("failed to set validation parameter on asset: %v", err)
-	}
-
-	return nil
-}
-
 func (t *AmlContract) Query(ctx contractapi.TransactionContextInterface, queryString string) ([]*Aml, error) {
 	return getQueryResultForQueryString(ctx, queryString)
 }
 
-// getQueryResultForQueryString executes the passed in query string.
-// The result set is built and returned as a byte array containing the JSON results.
-func getQueryResultForQueryString(ctx contractapi.TransactionContextInterface, queryString string) ([]*Aml, error) {
-	resultsIterator, err := ctx.GetStub().GetQueryResult(queryString)
-	if err != nil {
-		return nil, err
-	}
-	defer resultsIterator.Close()
-
-	return constructQueryResponseFromIterator(resultsIterator)
-}
-
-// constructQueryResponseFromIterator constructs a slice of assets from the resultsIterator
-func constructQueryResponseFromIterator(resultsIterator shim.StateQueryIteratorInterface) ([]*Aml, error) {
-	var assets []*Aml
-	for resultsIterator.HasNext() {
-		queryResult, err := resultsIterator.Next()
-		if err != nil {
-			return nil, err
-		}
-		var asset Aml
-		err = json.Unmarshal(queryResult.Value, &asset)
-		if err != nil {
-			return nil, err
-		}
-		assets = append(assets, &asset)
-	}
-
-	return assets, nil
-}
-
 // UpdateAml retrieves an instance of Aml from the world state and updates its value
-func (c *AmlContract) UpdateAmlData(ctx contractapi.TransactionContextInterface, last_name string, first_name string, dob string, country string, id_number string, risk_level string) error {
+func (c *AmlContract) Update(ctx contractapi.TransactionContextInterface, last_name string, first_name string, dob string, country string, id_number string, risk_level string) error {
 
 	// No need to check client org id matches peer org id, rely on the asset ownership check instead.
 	clientOrgID, err := getClientOrgID(ctx, false)
@@ -230,7 +124,7 @@ func (c *AmlContract) UpdateAmlData(ctx contractapi.TransactionContextInterface,
 }
 
 // DeleteAml deletes an instance of Aml from the world state
-func (c *AmlContract) DeleteAmlData(ctx contractapi.TransactionContextInterface, country string, id_number string) error {
+func (c *AmlContract) Delete(ctx contractapi.TransactionContextInterface, country string, id_number string) error {
 	// No need to check client org id matches peer org id, rely on the asset ownership check instead.
 	clientOrgID, err := getClientOrgID(ctx, false)
 	if err != nil {
@@ -248,9 +142,9 @@ func (c *AmlContract) DeleteAmlData(ctx contractapi.TransactionContextInterface,
 	return ctx.GetStub().DelState(key)
 }
 
-// GetAssetHistory returns the chain of custody for an asset since issuance.
-func (c *AmlContract) GetAssetHistory(ctx contractapi.TransactionContextInterface, country string, id_number string, data_owner string) ([]HistoryQueryResult, error) {
-	log.Printf("GetAssetHistory: Country: %s, ID_number: %s, Data_owner: %s", country, id_number, data_owner)
+// GetHistory returns the chain of custody for an asset since issuance.
+func (c *AmlContract) GetHistory(ctx contractapi.TransactionContextInterface, country string, id_number string, data_owner string) ([]HistoryQueryResult, error) {
+	log.Printf("GetHistory: Country: %s, ID_number: %s, Data_owner: %s", country, id_number, data_owner)
 	key := country + "_" + id_number + "_" + data_owner
 	resultsIterator, err := ctx.GetStub().GetHistoryForKey(key)
 	if err != nil {
@@ -265,14 +159,10 @@ func (c *AmlContract) GetAssetHistory(ctx contractapi.TransactionContextInterfac
 			return nil, err
 		}
 
-		var asset Aml
-		if len(response.Value) > 0 {
-			err = json.Unmarshal(response.Value, &asset)
-			if err != nil {
-				return nil, err
-			}
-		} else {
-			asset = Aml{}
+		var asset *Aml
+		err = json.Unmarshal(response.Value, &asset)
+		if err != nil {
+			return nil, err
 		}
 
 		timestamp, err := ptypes.Timestamp(response.Timestamp)
@@ -283,7 +173,7 @@ func (c *AmlContract) GetAssetHistory(ctx contractapi.TransactionContextInterfac
 		record := HistoryQueryResult{
 			TxId:      response.TxId,
 			Timestamp: timestamp,
-			Record:    &asset,
+			Record:    asset,
 			IsDelete:  response.IsDelete,
 		}
 		records = append(records, record)
