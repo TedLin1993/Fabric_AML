@@ -34,7 +34,7 @@ func (c *AmlContract) Init(ctx contractapi.TransactionContextInterface) error {
 	}
 	for _, aml := range amlData {
 		AmlAsbytes, _ := json.Marshal(aml)
-		key := aml.Country + "_" + aml.ID_number + "_" + aml.Data_owner
+		key := aml.ID_number + "_" + aml.Data_owner
 		err := ctx.GetStub().PutState(key, AmlAsbytes)
 
 		if err != nil {
@@ -55,7 +55,7 @@ func (c *AmlContract) Create(ctx contractapi.TransactionContextInterface, last_n
 		return fmt.Errorf("failed to get verified OrgID: %v", err)
 	}
 
-	key := country + "_" + id_number + "_" + clientOrgID
+	key := id_number + "_" + clientOrgID
 	exists, err := c.AmlExists(ctx, key)
 	if err != nil {
 		return fmt.Errorf("could not interact with aml world state. %s", err)
@@ -101,7 +101,7 @@ func (c *AmlContract) Update(ctx contractapi.TransactionContextInterface, last_n
 		return fmt.Errorf("failed to get verified OrgID: %v", err)
 	}
 
-	key := country + "_" + id_number + "_" + clientOrgID
+	key := id_number + "_" + clientOrgID
 	exists, err := c.AmlExists(ctx, key)
 	if err != nil {
 		return fmt.Errorf("could not interact with aml world state. %s", err)
@@ -124,28 +124,28 @@ func (c *AmlContract) Update(ctx contractapi.TransactionContextInterface, last_n
 }
 
 // DeleteAml deletes an instance of Aml from the world state
-func (c *AmlContract) Delete(ctx contractapi.TransactionContextInterface, country string, id_number string) error {
+func (c *AmlContract) Delete(ctx contractapi.TransactionContextInterface, id_number string) error {
 	// No need to check client org id matches peer org id, rely on the asset ownership check instead.
 	clientOrgID, err := getClientOrgID(ctx, false)
 	if err != nil {
 		return fmt.Errorf("failed to get verified OrgID: %v", err)
 	}
 
-	key := country + "_" + id_number + "_" + clientOrgID
+	key := id_number + "_" + clientOrgID
 	exists, err := c.AmlExists(ctx, key)
 	if err != nil {
 		return fmt.Errorf("could not interact with aml world state. %s", err)
 	} else if !exists {
-		return fmt.Errorf("the aml data does not exist, country:%s, id_number:%s, data_owner:%s", country, id_number, clientOrgID)
+		return fmt.Errorf("the aml data does not exist, id_number:%s, data_owner:%s", id_number, clientOrgID)
 	}
 
 	return ctx.GetStub().DelState(key)
 }
 
 // GetHistory returns the chain of custody for an asset since issuance.
-func (c *AmlContract) GetHistory(ctx contractapi.TransactionContextInterface, country string, id_number string, data_owner string) ([]HistoryQueryResult, error) {
-	log.Printf("GetHistory: Country: %s, ID_number: %s, Data_owner: %s", country, id_number, data_owner)
-	key := country + "_" + id_number + "_" + data_owner
+func (c *AmlContract) GetHistory(ctx contractapi.TransactionContextInterface, id_number string, data_owner string) ([]HistoryQueryResult, error) {
+	log.Printf("GetHistory: ID_number: %s, Data_owner: %s", id_number, data_owner)
+	key := id_number + "_" + data_owner
 	resultsIterator, err := ctx.GetStub().GetHistoryForKey(key)
 	if err != nil {
 		return nil, err
